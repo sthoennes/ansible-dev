@@ -1,0 +1,35 @@
+---
+- name: Learning to send HTTP messages with Ansible
+  hosts: localhost # we will test the URI module the API to target
+  connection: local # we want the CONTROLLER to do this
+  gather_facts: false
+
+  vars:
+          url: https://api.spacexdata.com/v3/launchpads # ?limit=5&offset=4
+
+  tasks:
+          - name: end an HTTPS GET to Space-X API
+            uri:
+                    url: "{{ url }}" # the URL to lookup
+                    method: GET # ansible can send any HTTP method
+            register: results # this will be MORE than JUST the JSON stripped of the 200...
+                              # results will ALSO include return values lie results.url and results.status
+                              # however our main interest with be in results.content
+            changed_when: false # this will ALWAYS paint the task GREEN ( remain idempotent, we aren't changing anything )
+          - name: Display results on the screen
+            debug:
+                    var: results  
+                    verbosity: 2 # this requires the suer to throw -v in order to make the playbook run this task  
+          - name: Use Python method on a DICT to just return the KEYS within our data
+            debug:
+                    var: results.json[0].keys() # we know this to be list of DICTs, which is object in Python, DICTS have Python methods
+                                      # can use methods, but not functions with Ansible from Python
+                                      # can use .keys() to return the keys
+          - name: Use the JINJA filter called 'map' to return just pluck a single key from every dictionary in our list results.json
+            debug:
+                    msg: "{{ results.json|map(attribute='name') }}"
+
+          - name: Make our "results more readable by writing them out to a file as YAML
+            copy:
+                    content: "{{ results.json|to_nice_yaml }}" # legal JSON and convert to YAML using a filter
+                    dest: ~/ans/spacex-api-results.yml          # write our new data to file
